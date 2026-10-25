@@ -23,6 +23,8 @@ Case of
 				Form.game.tapCell(Num(Substring($name; 9))-1)
 			: (Position("palBtn_"; $name)=1)
 				Form.game.selectBrush(Num(Substring($name; 8)))
+			: (Position("szBtn_"; $name)=1)
+				Form.game.setSize(Num(Substring($name; 7))+2)
 			: ($name="newBtn")
 				Form.game.newPuzzle()
 		End case

@@ -18,14 +18,14 @@ property transition : cs.hero.ElementTransition
 property N : Integer:=3                 // grid side (3 elements → 3×3); scalable
 property cells : Integer                 // N*N
 
-// theme sets — each is N emojis; a new puzzle picks one at random
+// theme sets — each has 5 emojis; a puzzle of side N takes the first N
 property themes : Collection:=[\
-["🍎"; "🍌"; "🍇"]; \
-["🐶"; "🐱"; "🐰"]; \
-["🦄"; "🧜‍♀️"; "🐬"]; \
-["⭐"; "🌈"; "🌸"]; \
-["🚗"; "🚲"; "✈️"]; \
-["🍓"; "🍦"; "🍰"]]
+["🍎"; "🍌"; "🍇"; "🍓"; "🍊"]; \
+["🐶"; "🐱"; "🐰"; "🦊"; "🐸"]; \
+["🦄"; "🧜‍♀️"; "🐬"; "🐙"; "🦋"]; \
+["⭐"; "🌈"; "🌸"; "🍄"; "🌻"]; \
+["🚗"; "🚲"; "✈️"; "🚂"; "🚀"]; \
+["🍓"; "🍦"; "🍰"; "🍪"; "🍩"]]
 property theme : Collection              // the N emojis in play
 
 property solution : Collection           // [idx] -> 1..N (a valid Latin square)
@@ -37,13 +37,22 @@ property over : Boolean:=False
 property colGiven : Integer:=0x00E4E7EC
 property colFree : Integer:=0x00FFFFFF
 property colBad : Integer:=0x00FFD4D4
-property cellFont : Integer                // the cell emoji size, read from the form
+property cellFont : Integer                // the cell emoji size, per grid size
+property cellSize : Integer
 
 Class constructor($transition : cs.hero.ElementTransition)
 
 	This.transition:=$transition
-	This.cells:=This.N*This.N
-	This.cellFont:=cs.hero.ElementState.new("cellLbl_1").fontSize
+	This.setSize(3)
+
+	// === === === === === === === === === === === === === === === === === === === ===
+	// Switch grid size: 3×3, 4×4 or 5×5 (N elements). Lays the pooled cells out.
+Function setSize($n : Integer)
+
+	This.N:=$n
+	This.cells:=$n*$n
+	This._layout()
+	This._highlightSize($n)
 	This.newPuzzle()
 
 	// === === === === === === === === === === === === === === === === === === === ===
@@ -79,8 +88,8 @@ Function newPuzzle()
 		End for
 	End for
 
-	// reveal some clues, leave a handful empty to fill
-	var $empties : Integer:=This._hi((This.N=3); 4; (This.cells\2))
+	// reveal some clues, leave a handful empty to fill (~a third of the grid)
+	var $empties : Integer:=(This.cells\3)
 	var $clues : Integer:=This.cells-$empties
 	var $order : Collection:=This._shuffle(This._range(This.cells))
 	For ($i; 0; $clues-1)
@@ -292,9 +301,85 @@ Function _shuffle($src : Collection) : Collection
 	End while
 	return $out
 
-Function _hi($cond : Boolean; $a : Integer; $b : Integer) : Integer
+	// Lay the pooled cells and palette out for the current N over a fixed area.
+Function _layout()
 
-	If ($cond)
-		return $a
-	End if
-	return $b
+	var $GRID : Integer:=300
+	var $gx : Integer:=40
+	var $gy : Integer:=72
+	var $gap : Integer:=6
+
+	var $cell : Integer:=($GRID-((This.N-1)*$gap))\This.N
+	This.cellSize:=$cell
+	This.cellFont:=Round($cell*0.52; 0)
+
+	var $i; $r; $c; $x; $y : Integer
+	For ($i; 0; 24)
+		var $bg : Text:="cellBg_"+String($i+1)
+		var $lb : Text:="cellLbl_"+String($i+1)
+		var $bt : Text:="cellBtn_"+String($i+1)
+		If ($i<This.cells)
+			$r:=($i\This.N)
+			$c:=($i%This.N)
+			$x:=$gx+($c*($cell+$gap))
+			$y:=$gy+($r*($cell+$gap))
+			OBJECT SET COORDINATES(*; $bg; $x; $y; $x+$cell; $y+$cell)
+			OBJECT SET COORDINATES(*; $lb; $x; $y; $x+$cell; $y+$cell)
+			OBJECT SET COORDINATES(*; $bt; $x; $y; $x+$cell; $y+$cell)
+			OBJECT SET FONT SIZE(*; $lb; This.cellFont)
+			OBJECT SET VISIBLE(*; $bg; True)
+			OBJECT SET VISIBLE(*; $lb; True)
+			OBJECT SET VISIBLE(*; $bt; True)
+		Else
+			OBJECT SET VISIBLE(*; $bg; False)
+			OBJECT SET VISIBLE(*; $lb; False)
+			OBJECT SET VISIBLE(*; $bt; False)
+		End if
+	End for
+
+	// palette: N pads in a centred row, shrunk to fit
+	var $pg : Integer:=10
+	var $pal : Integer:=64
+	var $span : Integer:=(This.N*$pal)+((This.N-1)*$pg)
+	While ($span>340)
+		$pal:=$pal-4
+		$span:=(This.N*$pal)+((This.N-1)*$pg)
+	End while
+	var $px0 : Integer:=(380-$span)\2
+	var $py : Integer:=392
+
+	var $j; $px : Integer
+	For ($j; 1; 5)
+		var $pp : Text:="palPad_"+String($j)
+		var $pl : Text:="palLbl_"+String($j)
+		var $pb : Text:="palBtn_"+String($j)
+		If ($j<=This.N)
+			$px:=$px0+(($j-1)*($pal+$pg))
+			OBJECT SET COORDINATES(*; $pp; $px; $py; $px+$pal; $py+$pal)
+			OBJECT SET COORDINATES(*; $pl; $px; $py; $px+$pal; $py+$pal)
+			OBJECT SET COORDINATES(*; $pb; $px; $py; $px+$pal; $py+$pal)
+			OBJECT SET FONT SIZE(*; $pl; Round($pal*0.5; 0))
+			OBJECT SET VISIBLE(*; $pp; True)
+			OBJECT SET VISIBLE(*; $pl; True)
+			OBJECT SET VISIBLE(*; $pb; True)
+		Else
+			OBJECT SET VISIBLE(*; $pp; False)
+			OBJECT SET VISIBLE(*; $pl; False)
+			OBJECT SET VISIBLE(*; $pb; False)
+		End if
+	End for
+
+	// --------------------------------------------------------------------------------
+	// Size selector: 1→3×3, 2→4×4, 3→5×5
+Function _highlightSize($n : Integer)
+
+	var $i : Integer
+	For ($i; 1; 3)
+		If (($i+2)=$n)
+			OBJECT SET RGB COLORS(*; "szPad_"+String($i); 0x00344054; 0x00344054)
+			OBJECT SET RGB COLORS(*; "szLbl_"+String($i); 0x00FFFFFF; 0x00344054)
+		Else
+			OBJECT SET RGB COLORS(*; "szPad_"+String($i); 0x00E4E7EC; 0x00E4E7EC)
+			OBJECT SET RGB COLORS(*; "szLbl_"+String($i); 0x00667085; 0x00E4E7EC)
+		End if
+	End for
